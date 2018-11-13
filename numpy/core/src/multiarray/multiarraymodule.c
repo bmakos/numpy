@@ -2044,6 +2044,7 @@ static PyObject *
 array_fromfile(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *keywds)
 {
     PyObject *file = NULL, *ret;
+    PyObject *err_type = NULL, *err_value = NULL, *err_traceback = NULL;
     char *sep = "";
     Py_ssize_t nin = -1;
     static char *kwlist[] = {"file", "dtype", "count", "sep", NULL};
@@ -2079,18 +2080,26 @@ array_fromfile(PyObject *NPY_UNUSED(ignored), PyObject *args, PyObject *keywds)
     }
     ret = PyArray_FromFile(fp, type, (npy_intp) nin, sep);
 
+    /* If an exception is thrown in the call to PyArray_FromFile
+     * we need to clear it, and restore it later to ensure that
+     * we can cleanup the duplicated file descriptor properly.
+     */
+    PyErr_Fetch(&err_type, &err_value, &err_traceback);
     if (npy_PyFile_DupClose2(file, fp, orig_pos) < 0) {
+        npy_PyErr_ChainExceptions(err_type, err_value, err_traceback);
         goto fail;
     }
     if (own && npy_PyFile_CloseFile(file) < 0) {
+        npy_PyErr_ChainExceptions(err_type, err_value, err_traceback);
         goto fail;
     }
+    PyErr_Restore(err_type, err_value, err_traceback);
     Py_DECREF(file);
     return ret;
 
 fail:
     Py_DECREF(file);
-    Py_DECREF(ret);
+    Py_XDECREF(ret);
     return NULL;
 }
 
@@ -2990,7 +2999,7 @@ array_set_ops_function(PyObject *NPY_UNUSED(self), PyObject *NPY_UNUSED(args),
 {
     PyObject *oldops = NULL;
 
-    if ((oldops = PyArray_GetNumericOps()) == NULL) {
+    if ((oldops = _PyArray_GetNumericOps()) == NULL) {
         return NULL;
     }
     /*
@@ -3000,8 +3009,10 @@ array_set_ops_function(PyObject *NPY_UNUSED(self), PyObject *NPY_UNUSED(args),
      */
     if (kwds && PyArray_SetNumericOps(kwds) == -1) {
         Py_DECREF(oldops);
-        PyErr_SetString(PyExc_ValueError,
+        if (PyErr_Occurred() == NULL) {
+            PyErr_SetString(PyExc_ValueError,
                 "one or more objects not callable");
+        }
         return NULL;
     }
     return oldops;

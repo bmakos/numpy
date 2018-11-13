@@ -1072,6 +1072,43 @@ add_newdoc('numpy.core.multiarray', 'fromstring',
 
     """)
 
+add_newdoc('numpy.core.multiarray', 'compare_chararrays',
+    """
+    compare_chararrays(a, b, cmp_op, rstrip)
+
+    Performs element-wise comparison of two string arrays using the
+    comparison operator specified by `cmp_op`.
+
+    Parameters
+    ----------
+    a, b : array_like
+        Arrays to be compared.
+    cmp_op : {"<", "<=", "==", ">=", ">", "!="}
+        Type of comparison.
+    rstrip : Boolean
+        If True, the spaces at the end of Strings are removed before the comparison.
+
+    Returns
+    -------
+    out : ndarray
+        The output array of type Boolean with the same shape as a and b.
+
+    Raises
+    ------
+    ValueError
+        If `cmp_op` is not valid.
+    TypeError
+        If at least one of `a` or `b` is a non-string array
+
+    Examples
+    --------
+    >>> a = np.array(["a", "b", "cde"])
+    >>> b = np.array(["a", "a", "dec"])
+    >>> np.compare_chararrays(a, b, ">", True)
+    array([False,  True, False])
+
+    """)
+
 add_newdoc('numpy.core.multiarray', 'fromiter',
     """
     fromiter(iterable, dtype, count=-1)
@@ -1319,6 +1356,12 @@ add_newdoc('numpy.core.multiarray', 'set_numeric_ops',
     set_numeric_ops(op1=func1, op2=func2, ...)
 
     Set numerical operators for array objects.
+
+    .. deprecated:: 1.16
+
+        For the general case, use :c:func:`PyUFunc_ReplaceLoopBySignature`.
+        For ndarray subclasses, define the ``__array_ufunc__`` method and
+        override the relevant ufunc.
 
     Parameters
     ----------
@@ -1597,7 +1640,7 @@ add_newdoc('numpy.core.multiarray', 'c_einsum',
     """
     c_einsum(subscripts, *operands, out=None, dtype=None, order='K',
            casting='safe')
-           
+
     *This documentation shadows that of the native python implementation of the `einsum` function,
     except all references and examples related to the `optimize` argument (v 0.12.0) have been removed.*
 
@@ -2113,7 +2156,7 @@ add_newdoc('numpy.core.multiarray', 'ndarray', ('ctypes',
     -----
     Below are the public attributes of this object which were documented
     in "Guide to NumPy" (we have omitted undocumented public attributes,
-    as well as documented private attributes): 
+    as well as documented private attributes):
 
     .. autoattribute:: numpy.core._internal._ctypes.data
 
@@ -2455,7 +2498,7 @@ add_newdoc('numpy.core.multiarray', 'ndarray', ('size',
 
     Notes
     -----
-    `a.size` returns a standard arbitrary precision Python integer. This 
+    `a.size` returns a standard arbitrary precision Python integer. This
     may not be the case with other methods of obtaining the same value
     (like the suggested ``np.prod(a.shape)``, which returns an instance
     of ``np.int_``), and may be relevant if the value is used further in
@@ -4090,7 +4133,7 @@ add_newdoc('numpy.core.multiarray', 'ndarray', ('tofile',
     machines with different endianness. Some of these problems can be overcome
     by outputting the data as text files, at the expense of speed and file
     size.
-    
+
     When fid is a file object, array contents are directly written to the
     file, bypassing the file object's ``write`` method. As a result, tofile
     cannot be used with files objects supporting compression (e.g., GzipFile)
@@ -5200,7 +5243,7 @@ add_newdoc('numpy.core', 'ufunc', ('reduce',
         to None - otherwise it defaults to ufunc.identity.
         If ``None`` is given, the first element of the reduction is used,
         and an error is thrown if the reduction is empty.
-        
+
         .. versionadded:: 1.15.0
 
     Returns
@@ -5233,18 +5276,18 @@ add_newdoc('numpy.core', 'ufunc', ('reduce',
     >>> np.add.reduce(X, 2)
     array([[ 1,  5],
            [ 9, 13]])
-           
+
     You can use the ``initial`` keyword argument to initialize the reduction with a
     different value.
-    
+
     >>> np.add.reduce([10], initial=5)
     15
     >>> np.add.reduce(np.ones((2, 2, 2)), axis=(0, 2), initializer=10)
     array([14., 14.])
-    
+
     Allows reductions of empty arrays where they would normally fail, i.e.
     for ufuncs without an identity.
-    
+
     >>> np.minimum.reduce([], initial=np.inf)
     inf
     >>> np.minimum.reduce([])

@@ -4541,6 +4541,19 @@ class TestIO(object):
             f.close()
             assert_equal(pos, 10, err_msg=err_msg)
 
+    def test_load_object_array_fromfile(self):
+        # gh-12300
+        with open(self.filename, 'w') as f:
+            # Ensure we have a file with consistent contents
+            pass
+
+        with open(self.filename, 'rb') as f:
+            assert_raises_regex(ValueError, "Cannot read into object array",
+                                np.fromfile, f, dtype=object)
+
+        assert_raises_regex(ValueError, "Cannot read into object array",
+                            np.fromfile, self.filename, dtype=object)
+
     def _check_from(self, s, value, **kw):
         if 'sep' not in kw:
             y = np.frombuffer(s, **kw)
@@ -6775,7 +6788,7 @@ class TestNewBufferProtocol(object):
             ValueError, "format string",
             np.array, m)
 
-    def test_error_message(self):
+    def test_error_message_unsupported(self):
         # wchar has no corresponding numpy type - if this changes in future, we
         # need a better way to construct an invalid memoryview format.
         t = ctypes.c_wchar * 4
@@ -6784,7 +6797,10 @@ class TestNewBufferProtocol(object):
 
         exc = cm.exception
         if sys.version_info.major > 2:
-            with assert_raises_regex(ValueError, "Unknown .* specifier 'u'"):
+            with assert_raises_regex(
+                NotImplementedError,
+                r"Unrepresentable .* 'u' \(UCS-2 strings\)"
+            ):
                 raise exc.__cause__
 
     def test_ctypes_integer_via_memoryview(self):

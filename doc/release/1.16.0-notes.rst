@@ -4,7 +4,7 @@ NumPy 1.16.0 Release Notes
 
 This NumPy release is the last one to support Python 2.7. It will be maintained
 as a long term release with bug fixes only through 2020. To that end, the
-planned code reorganization detailed in NEP-0015 has been made in order to
+planned code reorganization detailed in `NEP 15`_ has been made in order to
 facilitate backporting fixes from future releases, which will now have the
 same code organization.
 
@@ -40,6 +40,13 @@ These were deprecated in 1.10, had no tests, and seem to no longer work in
 ------------------------------------
 It is an alias to the more powerful `numpy.ndarray.item`, not tested, and fails
 for scalars.
+
+`np.set_array_ops` and `np.get_array_ops` have been deprecated
+--------------------------------------------------------------
+As part of `NEP 15`, they have been deprecated along with the C-API functions
+:c:func:`PyArray_SetNumericOps` and :c:func:`PyArray_GetNumericOps`. Users who wish to override
+the inner loop functions in built-in ufuncs should use
+:c:func:`PyUFunc_ReplaceLoopBySignature`.
 
 Future Changes
 ==============
@@ -102,8 +109,13 @@ for unraveling. ``dims`` remains supported, but is now deprecated.
 C API changes
 =============
 
-The :c:data:`NPY_API_VERSION` was incremented to 0x0000D since
-``core_dim_flags`` and ``core_dim_sizes`` were added to :c:type:`PyUFuncObject`.
+The :c:data:`NPY_API_VERSION` was incremented to 0x0000D, due to the addition
+of:
+
+* :c:member:`PyUFuncObject.core_dim_flags`
+* :c:member:`PyUFuncObject.core_dim_sizes`
+* :c:member:`PyUFuncObject.identity_value`
+* :c:function:`PyUFunc_FromFuncAndDataAndSignatureAndIdentity`
 
 New Features
 ============
@@ -279,6 +291,25 @@ The ``np.core.records.fromfile`` function now supports ``pathlib.Path``
 and other path-like objects in addition to a file object. Furthermore, the
 ``np.load`` function now also supports path-like objects when
 using memory mapping (``mmap_mode`` keyword argument).
+
+Better behaviour of ufunc identities during reductions
+------------------------------------------------------
+Universal functions have an ``.identity`` which is used when ``.reduce`` is
+called on an empty axis.
+
+As of this release, the logical binary ufuncs, `logical_and`, `logical_or`,
+and `logical_xor`, now have ``identity``s of type `bool`, where previously they
+were of type `int`. This restores the 1.14 behavior of getting ``bool``s when
+reducing empty object arrays with these ufuncs, while also keeping the 1.15
+behavior of getting ``int``s when reducing empty object arrays with arithmetic
+ufuncs like ``add`` and ``multiply``.
+
+Additionally, `logaddexp` now has an identity of ``-inf``, allowing it to be
+called on empty sequences, where previously it could not be.
+
+This is possible thanks to the new
+:c:function:`PyUFunc_FromFuncAndDataAndSignatureAndIdentity`, which allows
+arbitrary values to be used as identities now.
 
 
 Changes

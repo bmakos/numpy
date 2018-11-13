@@ -1679,9 +1679,9 @@ cdef class RandomState:
         Parameters
         ----------
         a : float or array_like of floats
-            Alpha, non-negative.
+            Alpha, positive (>0).
         b : float or array_like of floats
-            Beta, non-negative.
+            Beta, positive (>0).
         size : int or tuple of ints, optional
             Output shape.  If the given shape is, e.g., ``(m, n, k)``, then
             ``m * n * k`` samples are drawn.  If size is ``None`` (default),
@@ -2785,7 +2785,7 @@ cdef class RandomState:
         Parameters
         ----------
         a : float or array_like of floats
-            Shape of the distribution. Should be greater than zero.
+            Shape parameter of the distribution.  Must be nonnegative.
         size : int or tuple of ints, optional
             Output shape.  If the given shape is, e.g., ``(m, n, k)``, then
             ``m * n * k`` samples are drawn.  If size is ``None`` (default),

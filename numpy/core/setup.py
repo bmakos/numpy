@@ -677,7 +677,7 @@ def configuration(parent_package='',top_path=None):
                        join('src', 'npymath', 'npy_math_complex.c.src'),
                        join('src', 'npymath', 'halffloat.c')
                        ]
-    
+
     # Must be true for CRT compilers but not MinGW/cygwin. See gh-9977.
     is_msvc = platform.system() == 'Windows'
     config.add_installed_library('npymath',
@@ -697,7 +697,8 @@ def configuration(parent_package='',top_path=None):
     #######################################################################
 
     # This library is created for the build but it is not installed
-    npysort_sources = [join('src', 'npysort', 'quicksort.c.src'),
+    npysort_sources = [join('src', 'common', 'npy_sort.h.src'),
+                       join('src', 'npysort', 'quicksort.c.src'),
                        join('src', 'npysort', 'mergesort.c.src'),
                        join('src', 'npysort', 'heapsort.c.src'),
                        join('src', 'common', 'npy_partition.h.src'),
@@ -903,14 +904,15 @@ def configuration(parent_package='',top_path=None):
             join('include', 'numpy', 'npy_math.h'),
             join('include', 'numpy', 'halffloat.h'),
             join('src', 'multiarray', 'common.h'),
+            join('src', 'multiarray', 'number.h'),
             join('src', 'common', 'templ_common.h.src'),
             join('src', 'umath', 'simd.inc.src'),
             join('src', 'umath', 'override.h'),
             join(codegen_dir, 'generate_ufunc_api.py'),
-            ] 
+            ]
 
     config.add_extension('_multiarray_umath',
-                         sources=multiarray_src + umath_src + 
+                         sources=multiarray_src + umath_src +
                                  npymath_sources + common_src +
                                  [generate_config_h,
                                   generate_numpyconfig_h,
@@ -920,7 +922,7 @@ def configuration(parent_package='',top_path=None):
                                   generate_umath_c,
                                   generate_ufunc_api,
                                  ],
-                         depends=deps + multiarray_deps + umath_deps + 
+                         depends=deps + multiarray_deps + umath_deps +
                                 common_deps,
                          libraries=['npymath', 'npysort'],
                          extra_info=extra_info)
