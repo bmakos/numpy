@@ -12,8 +12,10 @@ import operator
 import sys
 import warnings
 import numbers
+import contextlib
 
 import numpy as np
+from numpy.compat import pickle, basestring
 from . import multiarray
 from .multiarray import (
     _fastCopyAndTranspose as fastCopyAndTranspose, ALLOW_THREADS,
@@ -43,17 +45,8 @@ ufunc = type(sin)
 newaxis = None
 
 if sys.version_info[0] >= 3:
-    if sys.version_info[1] in (6, 7):
-        try:
-            import pickle5 as pickle
-        except ImportError:
-            import pickle
-    else:
-        import pickle
-    basestring = str
     import builtins
 else:
-    import cPickle as pickle
     import __builtin__ as builtins
 
 
@@ -160,9 +153,9 @@ def zeros_like(a, dtype=None, order='K', subok=True):
 
     >>> y = np.arange(3, dtype=float)
     >>> y
-    array([ 0.,  1.,  2.])
+    array([0., 1., 2.])
     >>> np.zeros_like(y)
-    array([ 0.,  0.,  0.])
+    array([0.,  0.,  0.])
 
     """
     res = empty_like(a, dtype=dtype, order=order, subok=subok)
@@ -205,19 +198,19 @@ def ones(shape, dtype=None, order='C'):
     Examples
     --------
     >>> np.ones(5)
-    array([ 1.,  1.,  1.,  1.,  1.])
+    array([1., 1., 1., 1., 1.])
 
     >>> np.ones((5,), dtype=int)
     array([1, 1, 1, 1, 1])
 
     >>> np.ones((2, 1))
-    array([[ 1.],
-           [ 1.]])
+    array([[1.],
+           [1.]])
 
     >>> s = (2,2)
     >>> np.ones(s)
-    array([[ 1.,  1.],
-           [ 1.,  1.]])
+    array([[1.,  1.],
+           [1.,  1.]])
 
     """
     a = empty(shape, dtype, order)
@@ -280,9 +273,9 @@ def ones_like(a, dtype=None, order='K', subok=True):
 
     >>> y = np.arange(3, dtype=float)
     >>> y
-    array([ 0.,  1.,  2.])
+    array([0., 1., 2.])
     >>> np.ones_like(y)
-    array([ 1.,  1.,  1.])
+    array([1.,  1.,  1.])
 
     """
     res = empty_like(a, dtype=dtype, order=order, subok=subok)
@@ -323,8 +316,8 @@ def full(shape, fill_value, dtype=None, order='C'):
     Examples
     --------
     >>> np.full((2, 2), np.inf)
-    array([[ inf,  inf],
-           [ inf,  inf]])
+    array([[inf, inf],
+           [inf, inf]])
     >>> np.full((2, 2), 10)
     array([[10, 10],
            [10, 10]])
@@ -385,13 +378,13 @@ def full_like(a, fill_value, dtype=None, order='K', subok=True):
     >>> np.full_like(x, 0.1)
     array([0, 0, 0, 0, 0, 0])
     >>> np.full_like(x, 0.1, dtype=np.double)
-    array([ 0.1,  0.1,  0.1,  0.1,  0.1,  0.1])
+    array([0.1, 0.1, 0.1, 0.1, 0.1, 0.1])
     >>> np.full_like(x, np.nan, dtype=np.double)
-    array([ nan,  nan,  nan,  nan,  nan,  nan])
+    array([nan, nan, nan, nan, nan, nan])
 
     >>> y = np.arange(6, dtype=np.double)
     >>> np.full_like(y, 0.1)
-    array([ 0.1,  0.1,  0.1,  0.1,  0.1,  0.1])
+    array([0.1,  0.1,  0.1,  0.1,  0.1,  0.1])
 
     """
     res = empty_like(a, dtype=dtype, order=order, subok=subok)
@@ -620,8 +613,8 @@ def ascontiguousarray(a, dtype=None):
     --------
     >>> x = np.arange(6).reshape(2,3)
     >>> np.ascontiguousarray(x, dtype=np.float32)
-    array([[ 0.,  1.,  2.],
-           [ 3.,  4.,  5.]], dtype=float32)
+    array([[0., 1., 2.],
+           [3., 4., 5.]], dtype=float32)
     >>> x.flags['C_CONTIGUOUS']
     True
 
@@ -745,7 +738,7 @@ def require(a, dtype=None, requirements=None):
     if not requirements:
         return asanyarray(a, dtype=dtype)
     else:
-        requirements = set(possible_flags[x.upper()] for x in requirements)
+        requirements = {possible_flags[x.upper()] for x in requirements}
 
     if 'E' in requirements:
         requirements.remove('E')
@@ -754,7 +747,7 @@ def require(a, dtype=None, requirements=None):
         subok = True
 
     order = 'A'
-    if requirements >= set(['C', 'F']):
+    if requirements >= {'C', 'F'}:
         raise ValueError('Cannot specify both "C" and "F" order')
     elif 'F' in requirements:
         order = 'F'
@@ -802,7 +795,7 @@ def isfortran(a):
     >>> np.isfortran(a)
     False
 
-    >>> b = np.array([[1, 2, 3], [4, 5, 6]], order='FORTRAN')
+    >>> b = np.array([[1, 2, 3], [4, 5, 6]], order='F')
     >>> b
     array([[1, 2, 3],
            [4, 5, 6]])
@@ -987,11 +980,11 @@ def correlate(a, v, mode='valid'):
     Examples
     --------
     >>> np.correlate([1, 2, 3], [0, 1, 0.5])
-    array([ 3.5])
+    array([3.5])
     >>> np.correlate([1, 2, 3], [0, 1, 0.5], "same")
-    array([ 2. ,  3.5,  3. ])
+    array([2. ,  3.5,  3. ])
     >>> np.correlate([1, 2, 3], [0, 1, 0.5], "full")
-    array([ 0.5,  2. ,  3.5,  3. ,  0. ])
+    array([0.5,  2. ,  3.5,  3. ,  0. ])
 
     Using complex sequences:
 
@@ -1087,20 +1080,20 @@ def convolve(a, v, mode='full'):
     before "sliding" the two across one another:
 
     >>> np.convolve([1, 2, 3], [0, 1, 0.5])
-    array([ 0. ,  1. ,  2.5,  4. ,  1.5])
+    array([0. , 1. , 2.5, 4. , 1.5])
 
     Only return the middle values of the convolution.
     Contains boundary effects, where zeros are taken
     into account:
 
     >>> np.convolve([1,2,3],[0,1,0.5], 'same')
-    array([ 1. ,  2.5,  4. ])
+    array([1. ,  2.5,  4. ])
 
     The two arrays are of the same length, so there
     is only one position where they completely overlap:
 
     >>> np.convolve([1,2,3],[0,1,0.5], 'valid')
-    array([ 2.5])
+    array([2.5])
 
     """
     a, v = array(a, copy=False, ndmin=1), array(v, copy=False, ndmin=1)
@@ -1176,11 +1169,11 @@ def outer(a, b, out=None):
            [-2., -1.,  0.,  1.,  2.]])
     >>> im = np.outer(1j*np.linspace(2, -2, 5), np.ones((5,)))
     >>> im
-    array([[ 0.+2.j,  0.+2.j,  0.+2.j,  0.+2.j,  0.+2.j],
-           [ 0.+1.j,  0.+1.j,  0.+1.j,  0.+1.j,  0.+1.j],
-           [ 0.+0.j,  0.+0.j,  0.+0.j,  0.+0.j,  0.+0.j],
-           [ 0.-1.j,  0.-1.j,  0.-1.j,  0.-1.j,  0.-1.j],
-           [ 0.-2.j,  0.-2.j,  0.-2.j,  0.-2.j,  0.-2.j]])
+    array([[0.+2.j, 0.+2.j, 0.+2.j, 0.+2.j, 0.+2.j],
+           [0.+1.j, 0.+1.j, 0.+1.j, 0.+1.j, 0.+1.j],
+           [0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j, 0.+0.j],
+           [0.-1.j, 0.-1.j, 0.-1.j, 0.-1.j, 0.-1.j],
+           [0.-2.j, 0.-2.j, 0.-2.j, 0.-2.j, 0.-2.j]])
     >>> grid = rl + im
     >>> grid
     array([[-2.+2.j, -1.+2.j,  0.+2.j,  1.+2.j,  2.+2.j],
@@ -1193,9 +1186,9 @@ def outer(a, b, out=None):
 
     >>> x = np.array(['a', 'b', 'c'], dtype=object)
     >>> np.outer(x, [1, 2, 3])
-    array([[a, aa, aaa],
-           [b, bb, bbb],
-           [c, cc, ccc]], dtype=object)
+    array([['a', 'aa', 'aaa'],
+           ['b', 'bb', 'bbb'],
+           ['c', 'cc', 'ccc']], dtype=object)
 
     """
     a = asarray(a)
@@ -1210,20 +1203,18 @@ def _tensordot_dispatcher(a, b, axes=None):
 @array_function_dispatch(_tensordot_dispatcher)
 def tensordot(a, b, axes=2):
     """
-    Compute tensor dot product along specified axes for arrays >= 1-D.
+    Compute tensor dot product along specified axes.
 
-    Given two tensors (arrays of dimension greater than or equal to one),
-    `a` and `b`, and an array_like object containing two array_like
-    objects, ``(a_axes, b_axes)``, sum the products of `a`'s and `b`'s
-    elements (components) over the axes specified by ``a_axes`` and
-    ``b_axes``. The third argument can be a single non-negative
-    integer_like scalar, ``N``; if it is such, then the last ``N``
-    dimensions of `a` and the first ``N`` dimensions of `b` are summed
-    over.
+    Given two tensors, `a` and `b`, and an array_like object containing
+    two array_like objects, ``(a_axes, b_axes)``, sum the products of
+    `a`'s and `b`'s elements (components) over the axes specified by
+    ``a_axes`` and ``b_axes``. The third argument can be a single non-negative
+    integer_like scalar, ``N``; if it is such, then the last ``N`` dimensions
+    of `a` and the first ``N`` dimensions of `b` are summed over.
 
     Parameters
     ----------
-    a, b : array_like, len(shape) >= 1
+    a, b : array_like
         Tensors to "dot".
 
     axes : int or (2,) array_like
@@ -1264,11 +1255,11 @@ def tensordot(a, b, axes=2):
     >>> c.shape
     (5, 2)
     >>> c
-    array([[ 4400.,  4730.],
-           [ 4532.,  4874.],
-           [ 4664.,  5018.],
-           [ 4796.,  5162.],
-           [ 4928.,  5306.]])
+    array([[4400., 4730.],
+           [4532., 4874.],
+           [4664., 5018.],
+           [4796., 5162.],
+           [4928., 5306.]])
     >>> # A slower but equivalent way of computing the same...
     >>> d = np.zeros((5,2))
     >>> for i in range(5):
@@ -1294,40 +1285,40 @@ def tensordot(a, b, axes=2):
             [3, 4]],
            [[5, 6],
             [7, 8]]])
-    array([[a, b],
-           [c, d]], dtype=object)
+    array([['a', 'b'],
+           ['c', 'd']], dtype=object)
 
     >>> np.tensordot(a, A) # third argument default is 2 for double-contraction
-    array([abbcccdddd, aaaaabbbbbbcccccccdddddddd], dtype=object)
+    array(['abbcccdddd', 'aaaaabbbbbbcccccccdddddddd'], dtype=object)
 
     >>> np.tensordot(a, A, 1)
-    array([[[acc, bdd],
-            [aaacccc, bbbdddd]],
-           [[aaaaacccccc, bbbbbdddddd],
-            [aaaaaaacccccccc, bbbbbbbdddddddd]]], dtype=object)
+    array([[['acc', 'bdd'],
+            ['aaacccc', 'bbbdddd']],
+           [['aaaaacccccc', 'bbbbbdddddd'],
+            ['aaaaaaacccccccc', 'bbbbbbbdddddddd']]], dtype=object)
 
     >>> np.tensordot(a, A, 0) # tensor product (result too long to incl.)
-    array([[[[[a, b],
-              [c, d]],
+    array([[[[['a', 'b'],
+              ['c', 'd']],
               ...
 
     >>> np.tensordot(a, A, (0, 1))
-    array([[[abbbbb, cddddd],
-            [aabbbbbb, ccdddddd]],
-           [[aaabbbbbbb, cccddddddd],
-            [aaaabbbbbbbb, ccccdddddddd]]], dtype=object)
+    array([[['abbbbb', 'cddddd'],
+            ['aabbbbbb', 'ccdddddd']],
+           [['aaabbbbbbb', 'cccddddddd'],
+            ['aaaabbbbbbbb', 'ccccdddddddd']]], dtype=object)
 
     >>> np.tensordot(a, A, (2, 1))
-    array([[[abb, cdd],
-            [aaabbbb, cccdddd]],
-           [[aaaaabbbbbb, cccccdddddd],
-            [aaaaaaabbbbbbbb, cccccccdddddddd]]], dtype=object)
+    array([[['abb', 'cdd'],
+            ['aaabbbb', 'cccdddd']],
+           [['aaaaabbbbbb', 'cccccdddddd'],
+            ['aaaaaaabbbbbbbb', 'cccccccdddddddd']]], dtype=object)
 
     >>> np.tensordot(a, A, ((0, 1), (0, 1)))
-    array([abbbcccccddddddd, aabbbbccccccdddddddd], dtype=object)
+    array(['abbbcccccddddddd', 'aabbbbccccccdddddddd'], dtype=object)
 
     >>> np.tensordot(a, A, ((2, 1), (1, 0)))
-    array([acccbbdddd, aaaaacccccccbbbbbbdddddddd], dtype=object)
+    array(['acccbbdddd', 'aaaaacccccccbbbbbbdddddddd'], dtype=object)
 
     """
     try:
@@ -1442,7 +1433,9 @@ def roll(a, shift, axis=None):
     >>> x = np.arange(10)
     >>> np.roll(x, 2)
     array([8, 9, 0, 1, 2, 3, 4, 5, 6, 7])
-
+    >>> np.roll(x, -2)
+    array([2, 3, 4, 5, 6, 7, 8, 9, 0, 1])
+    
     >>> x2 = np.reshape(x, (2,5))
     >>> x2
     array([[0, 1, 2, 3, 4],
@@ -1450,12 +1443,21 @@ def roll(a, shift, axis=None):
     >>> np.roll(x2, 1)
     array([[9, 0, 1, 2, 3],
            [4, 5, 6, 7, 8]])
+    >>> np.roll(x2, -1)
+    array([[1, 2, 3, 4, 5],
+           [6, 7, 8, 9, 0]])
     >>> np.roll(x2, 1, axis=0)
+    array([[5, 6, 7, 8, 9],
+           [0, 1, 2, 3, 4]])
+    >>> np.roll(x2, -1, axis=0)
     array([[5, 6, 7, 8, 9],
            [0, 1, 2, 3, 4]])
     >>> np.roll(x2, 1, axis=1)
     array([[4, 0, 1, 2, 3],
            [9, 5, 6, 7, 8]])
+    >>> np.roll(x2, -1, axis=1)
+    array([[1, 2, 3, 4, 0],
+           [6, 7, 8, 9, 5]])
 
     """
     a = asanyarray(a)
@@ -1780,7 +1782,7 @@ def cross(a, b, axisa=-1, axisb=-1, axisc=-1, axis=None):
     >>> x = [1,2]
     >>> y = [4,5]
     >>> np.cross(x, y)
-    -3
+    array(-3)
 
     Multiple vector cross-products. Note that the direction of the cross
     product vector is defined by the `right-hand rule`.
@@ -2097,10 +2099,10 @@ def isscalar(num):
     NumPy supports PEP 3141 numbers:
 
     >>> from fractions import Fraction
-    >>> isscalar(Fraction(5, 17))
+    >>> np.isscalar(Fraction(5, 17))
     True
     >>> from numbers import Number
-    >>> isscalar(Number())
+    >>> np.isscalar(Number())
     True
 
     """
@@ -2339,9 +2341,9 @@ def identity(n, dtype=None):
     Examples
     --------
     >>> np.identity(3)
-    array([[ 1.,  0.,  0.],
-           [ 0.,  1.,  0.],
-           [ 0.,  0.,  1.]])
+    array([[1.,  0.,  0.],
+           [0.,  1.,  0.],
+           [0.,  0.,  1.]])
 
     """
     from numpy import eye
@@ -2487,23 +2489,23 @@ def isclose(a, b, rtol=1.e-5, atol=1.e-8, equal_nan=False):
     Examples
     --------
     >>> np.isclose([1e10,1e-7], [1.00001e10,1e-8])
-    array([True, False])
+    array([ True, False])
     >>> np.isclose([1e10,1e-8], [1.00001e10,1e-9])
-    array([True, True])
+    array([ True, True])
     >>> np.isclose([1e10,1e-8], [1.0001e10,1e-9])
-    array([False, True])
+    array([False,  True])
     >>> np.isclose([1.0, np.nan], [1.0, np.nan])
-    array([True, False])
+    array([ True, False])
     >>> np.isclose([1.0, np.nan], [1.0, np.nan], equal_nan=True)
-    array([True, True])
+    array([ True, True])
     >>> np.isclose([1e-8, 1e-7], [0.0, 0.0])
-    array([ True, False], dtype=bool)
+    array([ True, False])
     >>> np.isclose([1e-100, 1e-7], [0.0, 0.0], atol=0.0)
-    array([False, False], dtype=bool)
+    array([False, False])
     >>> np.isclose([1e-10, 1e-10], [1e-20, 0.0])
-    array([ True,  True], dtype=bool)
+    array([ True,  True])
     >>> np.isclose([1e-10, 1e-10], [1e-20, 0.999999e-10], atol=0.0)
-    array([False,  True], dtype=bool)
+    array([False,  True])
     """
     def within_tol(x, y, atol, rtol):
         with errstate(invalid='ignore'):
@@ -2650,10 +2652,7 @@ _errdict = {"ignore": ERR_IGNORE,
             "print": ERR_PRINT,
             "log": ERR_LOG}
 
-_errdict_rev = {}
-for key in _errdict.keys():
-    _errdict_rev[_errdict[key]] = key
-del key
+_errdict_rev = {value: key for key, value in _errdict.items()}
 
 
 @set_module('numpy')
@@ -2713,11 +2712,9 @@ def seterr(all=None, divide=None, over=None, under=None, invalid=None):
     --------
     >>> old_settings = np.seterr(all='ignore')  #seterr to known value
     >>> np.seterr(over='raise')
-    {'over': 'ignore', 'divide': 'ignore', 'invalid': 'ignore',
-     'under': 'ignore'}
+    {'divide': 'ignore', 'over': 'ignore', 'under': 'ignore', 'invalid': 'ignore'}
     >>> np.seterr(**old_settings)  # reset to default
-    {'over': 'raise', 'divide': 'ignore', 'invalid': 'ignore',
-     'under': 'ignore'}
+    {'divide': 'ignore', 'over': 'raise', 'under': 'ignore', 'invalid': 'ignore'}
 
     >>> np.int16(32000) * np.int16(3)
     30464
@@ -2727,11 +2724,11 @@ def seterr(all=None, divide=None, over=None, under=None, invalid=None):
       File "<stdin>", line 1, in <module>
     FloatingPointError: overflow encountered in short_scalars
 
+    >>> from collections import OrderedDict
     >>> old_settings = np.seterr(all='print')
-    >>> np.geterr()
-    {'over': 'print', 'divide': 'print', 'invalid': 'print', 'under': 'print'}
+    >>> OrderedDict(np.geterr())
+    OrderedDict([('divide', 'print'), ('over', 'print'), ('under', 'print'), ('invalid', 'print')])
     >>> np.int16(32000) * np.int16(3)
-    Warning: overflow encountered in short_scalars
     30464
 
     """
@@ -2782,18 +2779,17 @@ def geterr():
 
     Examples
     --------
-    >>> np.geterr()
-    {'over': 'warn', 'divide': 'warn', 'invalid': 'warn',
-    'under': 'ignore'}
+    >>> from collections import OrderedDict
+    >>> sorted(np.geterr().items())
+    [('divide', 'warn'), ('invalid', 'warn'), ('over', 'warn'), ('under', 'ignore')]
     >>> np.arange(3.) / np.arange(3.)
-    array([ NaN,   1.,   1.])
+    array([nan,  1.,  1.])
 
     >>> oldsettings = np.seterr(all='warn', over='raise')
-    >>> np.geterr()
-    {'over': 'raise', 'divide': 'warn', 'invalid': 'warn', 'under': 'warn'}
+    >>> OrderedDict(sorted(np.geterr().items()))
+    OrderedDict([('divide', 'warn'), ('invalid', 'warn'), ('over', 'raise'), ('under', 'warn')])
     >>> np.arange(3.) / np.arange(3.)
-    __main__:1: RuntimeWarning: invalid value encountered in divide
-    array([ NaN,   1.,   1.])
+    array([nan,  1.,  1.])
 
     """
     maskvalue = umath.geterrobj()[1]
@@ -2900,15 +2896,16 @@ def seterrcall(func):
 
     >>> saved_handler = np.seterrcall(err_handler)
     >>> save_err = np.seterr(all='call')
+    >>> from collections import OrderedDict
 
     >>> np.array([1, 2, 3]) / 0.0
     Floating point error (divide by zero), with flag 1
-    array([ Inf,  Inf,  Inf])
+    array([inf, inf, inf])
 
     >>> np.seterrcall(saved_handler)
     <function err_handler at 0x...>
-    >>> np.seterr(**save_err)
-    {'over': 'call', 'divide': 'call', 'invalid': 'call', 'under': 'call'}
+    >>> OrderedDict(sorted(np.seterr(**save_err).items()))
+    OrderedDict([('divide', 'call'), ('invalid', 'call'), ('over', 'call'), ('under', 'call')])
 
     Log error message:
 
@@ -2922,14 +2919,13 @@ def seterrcall(func):
     >>> save_err = np.seterr(all='log')
 
     >>> np.array([1, 2, 3]) / 0.0
-    LOG: Warning: divide by zero encountered in divide
-    <BLANKLINE>
-    array([ Inf,  Inf,  Inf])
+    LOG: Warning: divide by zero encountered in true_divide
+    array([inf, inf, inf])
 
     >>> np.seterrcall(saved_handler)
-    <__main__.Log object at 0x...>
-    >>> np.seterr(**save_err)
-    {'over': 'log', 'divide': 'log', 'invalid': 'log', 'under': 'log'}
+    <numpy.core.numeric.Log object at 0x...>
+    >>> OrderedDict(sorted(np.seterr(**save_err).items()))
+    OrderedDict([('divide', 'log'), ('invalid', 'log'), ('over', 'log'), ('under', 'log')])
 
     """
     if func is not None and not isinstance(func, collections_abc.Callable):
@@ -2978,7 +2974,7 @@ def geterrcall():
     >>> oldhandler = np.seterrcall(err_handler)
     >>> np.array([1, 2, 3]) / 0.0
     Floating point error (divide by zero), with flag 1
-    array([ Inf,  Inf,  Inf])
+    array([inf, inf, inf])
 
     >>> cur_handler = np.geterrcall()
     >>> cur_handler is err_handler
@@ -2996,7 +2992,7 @@ _Unspecified = _unspecified()
 
 
 @set_module('numpy')
-class errstate(object):
+class errstate(contextlib.ContextDecorator):
     """
     errstate(**kwargs)
 
@@ -3006,7 +3002,12 @@ class errstate(object):
     that context to execute with a known error handling behavior. Upon entering
     the context the error handling is set with `seterr` and `seterrcall`, and
     upon exiting it is reset to what it was before.
-
+    
+    ..  versionchanged:: 1.17.0
+        `errstate` is also usable as a function decorator, saving
+        a level of indentation if an entire function is wrapped.
+        See :py:class:`contextlib.ContextDecorator` for more information. 
+    
     Parameters
     ----------
     kwargs : {divide, over, under, invalid}
@@ -3026,15 +3027,14 @@ class errstate(object):
 
     Examples
     --------
+    >>> from collections import OrderedDict
     >>> olderr = np.seterr(all='ignore')  # Set error handling to known state.
 
     >>> np.arange(3) / 0.
-    array([ NaN,  Inf,  Inf])
+    array([nan, inf, inf])
     >>> with np.errstate(divide='warn'):
     ...     np.arange(3) / 0.
-    ...
-    __main__:2: RuntimeWarning: divide by zero encountered in divide
-    array([ NaN,  Inf,  Inf])
+    array([nan, inf, inf])
 
     >>> np.sqrt(-1)
     nan
@@ -3046,9 +3046,8 @@ class errstate(object):
 
     Outside the context the error handling behavior has not changed:
 
-    >>> np.geterr()
-    {'over': 'warn', 'divide': 'warn', 'invalid': 'warn',
-    'under': 'ignore'}
+    >>> OrderedDict(sorted(np.geterr().items()))
+    OrderedDict([('divide', 'ignore'), ('invalid', 'ignore'), ('over', 'ignore'), ('under', 'ignore')])
 
     """
     # Note that we don't want to run the above doctests because they will fail

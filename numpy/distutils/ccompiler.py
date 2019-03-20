@@ -17,9 +17,11 @@ from distutils.version import LooseVersion
 
 from numpy.distutils import log
 from numpy.distutils.compat import get_exception
-from numpy.distutils.exec_command import filepath_from_subprocess_output
+from numpy.distutils.exec_command import (
+    filepath_from_subprocess_output, forward_bytes_to_stdout
+)
 from numpy.distutils.misc_util import cyg2win32, is_sequence, mingw32, \
-                                      quote_args, get_num_build_jobs, \
+                                      get_num_build_jobs, \
                                       _commandline_dep_string
 
 # globals for parallel build management
@@ -159,11 +161,9 @@ def CCompiler_spawn(self, cmd, display=None):
 
     if is_sequence(cmd):
         cmd = ' '.join(list(cmd))
-    try:
-        print(o)
-    except UnicodeError:
-        # When installing through pip, `o` can contain non-ascii chars
-        pass
+
+    forward_bytes_to_stdout(o)
+
     if re.search(b'Too many open files', o):
         msg = '\nTry rerunning setup command until build succeeds.'
     else:
@@ -424,10 +424,8 @@ def _compiler_to_string(compiler):
             v = getattr(compiler, key)
             mx = max(mx, len(key))
             props.append((key, repr(v)))
-    lines = []
-    format = '%-' + repr(mx+1) + 's = %s'
-    for prop in props:
-        lines.append(format % prop)
+    fmt = '%-' + repr(mx+1) + 's = %s'
+    lines = [fmt % prop for prop in props]
     return '\n'.join(lines)
 
 def CCompiler_show_customization(self):
@@ -641,7 +639,7 @@ def CCompiler_get_version(self, force=False, ok_status=[0]):
             return version
 
     try:
-        output = subprocess.check_output(version_cmd)
+        output = subprocess.check_output(version_cmd, stderr=subprocess.STDOUT)
     except subprocess.CalledProcessError as exc:
         output = exc.output
         status = exc.returncode
@@ -772,8 +770,13 @@ ccompiler.new_compiler = new_compiler
 
 _distutils_gen_lib_options = gen_lib_options
 def gen_lib_options(compiler, library_dirs, runtime_library_dirs, libraries):
-    library_dirs = quote_args(library_dirs)
-    runtime_library_dirs = quote_args(runtime_library_dirs)
+    # the version of this function provided by CPython allows the following
+    # to return lists, which are unpacked automatically:
+    # - compiler.runtime_library_dir_option
+    # our version extends the behavior to:
+    # - compiler.library_dir_option
+    # - compiler.library_option
+    # - compiler.find_library_file
     r = _distutils_gen_lib_options(compiler, library_dirs,
                                    runtime_library_dirs, libraries)
     lib_opts = []
@@ -793,68 +796,3 @@ for _cc in ['msvc9', 'msvc', '_msvc', 'bcpp', 'cygwinc', 'emxc', 'unixc']:
     if _m is not None:
         setattr(_m, 'gen_lib_options', gen_lib_options)
 
-_distutils_gen_preprocess_options = gen_preprocess_options
-def gen_preprocess_options (macros, include_dirs):
-    include_dirs = quote_args(include_dirs)
-    return _distutils_gen_preprocess_options(macros, include_dirs)
-ccompiler.gen_preprocess_options = gen_preprocess_options
-
-##Fix distutils.util.split_quoted:
-# NOTE:  I removed this fix in revision 4481 (see ticket #619), but it appears
-# that removing this fix causes f2py problems on Windows XP (see ticket #723).
-# Specifically, on WinXP when gfortran is installed in a directory path, which
-# contains spaces, then f2py is unable to find it.
-import string
-_wordchars_re = re.compile(r'[^\\\'\"%s ]*' % string.whitespace)
-_squote_re = re.compile(r"'(?:[^'\\]|\\.)*'")
-_dquote_re = re.compile(r'"(?:[^"\\]|\\.)*"')
-_has_white_re = re.compile(r'\s')
-def split_quoted(s):
-    s = s.strip()
-    words = []
-    pos = 0
-
-    while s:
-        m = _wordchars_re.match(s, pos)
-        end = m.end()
-        if end == len(s):
-            words.append(s[:end])
-            break
-
-        if s[end] in string.whitespace: # unescaped, unquoted whitespace: now
-            words.append(s[:end])       # we definitely have a word delimiter
-            s = s[end:].lstrip()
-            pos = 0
-
-        elif s[end] == '\\':            # preserve whatever is being escaped;
-                                        # will become part of the current word
-            s = s[:end] + s[end+1:]
-            pos = end+1
-
-        else:
-            if s[end] == "'":           # slurp singly-quoted string
-                m = _squote_re.match(s, end)
-            elif s[end] == '"':         # slurp doubly-quoted string
-                m = _dquote_re.match(s, end)
-            else:
-                raise RuntimeError("this can't happen (bad char '%c')" % s[end])
-
-            if m is None:
-                raise ValueError("bad string (mismatched %s quotes?)" % s[end])
-
-            (beg, end) = m.span()
-            if _has_white_re.search(s[beg+1:end-1]):
-                s = s[:beg] + s[beg+1:end-1] + s[end:]
-                pos = m.end() - 2
-            else:
-                # Keeping quotes when a quoted word does not contain
-                # white-space. XXX: send a patch to distutils
-                pos = m.end()
-
-        if pos >= len(s):
-            words.append(s)
-            break
-
-    return words
-ccompiler.split_quoted = split_quoted
-##Fix distutils.util.split_quoted:

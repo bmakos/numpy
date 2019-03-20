@@ -400,6 +400,10 @@ class TestRandomDist(object):
         assert_raises(ValueError, sample, [1, 2], 3, p=[1.1, -0.1])
         assert_raises(ValueError, sample, [1, 2], 3, p=[0.4, 0.4])
         assert_raises(ValueError, sample, [1, 2, 3], 4, replace=False)
+        # gh-13087
+        assert_raises(ValueError, sample, [1, 2, 3], -2, replace=False)
+        assert_raises(ValueError, sample, [1, 2, 3], (-1,), replace=False)
+        assert_raises(ValueError, sample, [1, 2, 3], (-1, 1), replace=False)
         assert_raises(ValueError, sample, [1, 2, 3], 2,
                       replace=False, p=[1, 0, 0])
 
@@ -447,6 +451,11 @@ class TestRandomDist(object):
         assert_equal(np.random.choice([], size=(0,)).shape, (0,))
         assert_equal(np.random.choice(['a', 'b'], size=(3, 0, 4)).shape, (3, 0, 4))
         assert_raises(ValueError, np.random.choice, [], 10)
+
+    def test_choice_nan_probabilities(self):
+        a = np.array([42, 1, 2])
+        p = [None, None, None]
+        assert_raises(ValueError, np.random.choice, a, p=p)
 
     def test_bytes(self):
         np.random.seed(self.seed)
@@ -1349,6 +1358,8 @@ class TestBroadcast(object):
         assert_array_almost_equal(actual, desired, decimal=14)
         assert_raises(ValueError, wald, bad_mean, scale * 3)
         assert_raises(ValueError, wald, mean, bad_scale * 3)
+        assert_raises(ValueError, wald, 0.0, 1)
+        assert_raises(ValueError, wald, 0.5, 0.0)
 
     def test_triangular(self):
         left = [1]
